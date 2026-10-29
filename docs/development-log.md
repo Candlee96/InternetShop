@@ -16,7 +16,8 @@
 ## Проверки
 
 - `dotnet build .\InternetShop\InternetShop.csproj` — успешно, 0 ошибок, 0 предупреждений.
-- `dotnet run --project .\InternetShop\InternetShop.csproj` — демонстрационный сценарий создания и оплаты заказа.
+- `dotnet run --project .\InternetShop\InternetShop.csproj` — успешно; вывод сохранен в `docs/run-output.txt`.
+- После оплаты и доставки итоговый статус — «Отправлен», сумма заказа — 90 000 ₽, остатки: ноутбук 3, мышь 8.
 - История веток проверяется командами `git log --oneline --graph --all` и `git branch -a`.
 
 ## Как показать результат

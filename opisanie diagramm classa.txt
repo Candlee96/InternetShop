@@ -1,0 +1,208 @@
+@startuml
+abstract class AUser {
+  + register()
+  + login()
+  + seehistory()
+  + searchProduct()
+  + deleteacc()
+}
+
+class Manager {
+  - employeeId: Int
+  + getPendingOrders(): Order[]
+  + collectOrder()
+  + dispatchOrder()
+  + processReturn()
+}
+
+class Customer {
+  - name: String
+  - email: String
+  - bonusPoints: Int
+}
+
+class Administrator {
+  - adminLevel: Int
+  + manageSystem()
+  + blockUser()
+  + unblockUser()
+  + seeanyHistorybyemail()
+}
+
+Manager -up-|> AUser : Extends
+Customer -up-|> AUser : Extends
+Administrator -up-|> AUser : Extends
+
+class ShoppingCart {
+  - items: OrderItem[]
+  + addItem(product: Product, qty: Int)
+  + removeItem()
+  + checkout()
+}
+
+Customer "1" -- "1" ShoppingCart
+
+class Order {
+  - orderId: Int
+  - createdAt: DateTime
+  - trackingNumber: String
+  - currentState: OrderState
+  - orderItems: OrderItem[]
+  + calculateTotal()
+  + checkPaymentTimeout()
+  + assignTrackingNumber()
+  + updateStatus()
+}
+
+ShoppingCart ..> Order : creates
+Administrator ..> Order : requests
+Manager -- Order : processes
+Customer -- Order : purchaseHistory
+
+interface "<<Pattern: State>>\nOrderState" as OrderState {
+  + handleStatus()
+}
+Order o-- OrderState
+
+class ShippedState {
+  + handleStatus()
+}
+class DeliveredState {
+  + handleStatus()
+}
+class PaidState {
+  + handleStatus()
+}
+class CreatedState {
+  + handleStatus()
+}
+ShippedState ..|> OrderState
+DeliveredState ..|> OrderState
+PaidState ..|> OrderState
+CreatedState ..|> OrderState
+
+interface "<<Pattern: Strategy>>\nPaymentStrategy" as PaymentStrategy {
+  + pay(amount: Float)
+}
+Order ..> PaymentStrategy : Use
+
+class BonusPayment {
+  + pay(amount: Float)
+}
+class CardPayment {
+  + pay(amount: Float)
+}
+BonusPayment ..|> PaymentStrategy
+CardPayment ..|> PaymentStrategy
+
+class OrderItem {
+  - quantity: Int
+  - productID: Int
+  - priceAtPurchase: Float
+  + getSubtotal(): Float
+}
+
+Order *-- "1..*" OrderItem
+ShoppingCart o-- OrderItem
+
+class Product {
+  - id: Int
+  - name: String
+  - price: Float
+  - stockQuantity: Int
+  + getInfo()
+  + checkAvailability(amount: Int): Boolean
+}
+
+OrderItem "0..*" -- "1" Product : contains 1
+
+class Inventory {
+  - productList: Product[]
+  + addNewProduct()
+  + updateQuantity()
+  + getCatalog(): Product[]
+  + notifyWhenAvailable()
+}
+
+Administrator -- Inventory : manages
+Inventory o-- "0..*" Product
+@enduml
+
+
+Иерархия пользователей:
+
+AUser (Абстрактный класс): Базовый класс для всех пользователей. Содержит общие методы: регистрация (register()), вход (login()), просмотр истории (seehistory()), поиск товара (searchProduct()) и удаление аккаунта (deleteacc()).
+
+Manager (Менеджер): Имеет атрибут employeeId. Содержит методы для обработки заказов: getPendingOrders(), collectOrder(), dispatchOrder(), processReturn().
+
+Customer (Покупатель): Имеет атрибуты профиля: name, email и bonusPoints (бонусные баллы).
+
+Administrator (Администратор): Имеет уровень прав adminLevel. Содержит методы управления системой: manageSystem(), blockUser(), unblockUser(), seeanyHistorybyemail() (просмотр истории любого пользователя).
+
+Оформление заказа:
+
+ShoppingCart (Корзина): Хранит массив позиций items: OrderItem[]. Методы: addItem(), removeItem(), checkout() (оформление заказа).
+
+Order (Заказ): Хранит orderId, createdAt, trackingNumber, текущее состояние currentState и массив элементов orderItems. Методы для управления логикой заказа: calculateTotal(), checkPaymentTimeout(), assignTrackingNumber(), updateStatus().
+
+OrderItem (Позиция в заказе): Представляет конкретный товар в рамках заказа/корзины. Хранит quantity, productID, priceAtPurchase (цена на момент покупки) и метод getSubtotal().
+
+Каталог и склад:
+
+Product (Товар): Описывает сущность товара (id, name, price, stockQuantity). Включает методы getInfo() и checkAvailability().
+
+Inventory (Склад/Каталог): Хранит список всех товаров productList. Методы: addNewProduct(), updateQuantity(), getCatalog(), notifyWhenAvailable().
+
+Паттерны проектирования (Интерфейсы):
+
+OrderState (Паттерн Состояние): Интерфейс с методом handleStatus(). Управляет жизненным циклом заказа через конкретные классы-реализации: ShippedState (Отправлен), DeliveredState (Доставлен), PaidState (Оплачен), CreatedState (Создан).
+
+PaymentStrategy (Паттерн Стратегия): Интерфейс с методом pay(amount: Float). Определяет способ оплаты через реализации: BonusPayment (Оплата бонусами) и CardPayment (Оплата картой).
+
+3. Детальное описание всех связей (Relationships)
+Наследование (Generalization) — сплошная линия с пустой треугольной стрелкой:
+
+Manager Extends AUser: Менеджер наследует базовые свойства и методы пользователя.
+
+Customer Extends AUser: Покупатель наследует базовые свойства пользователя.
+
+Administrator Extends AUser: Администратор наследует базовые свойства пользователя.
+
+Реализация (Realization) — пунктирная линия с пустой треугольной стрелкой:
+
+Классы ShippedState, DeliveredState, PaidState, CreatedState реализуют интерфейс OrderState.
+
+Классы BonusPayment, CardPayment реализуют интерфейс PaymentStrategy.
+
+Ассоциация (Association) — сплошная линия:
+
+Customer (1) — (1) ShoppingCart: У одного покупателя есть строго одна корзина (связь один-к-одному).
+
+Customer — Order (маркер purchaseHistory): Связывает покупателя с его историей заказов.
+
+Manager — Order (маркер processes): Менеджер прикреплен к заказам, которые он обрабатывает.
+
+Administrator — Inventory (маркер manages): Администратор напрямую управляет складом и каталогом товаров.
+
+OrderItem (0..) — (1) Product (маркер contains 1): Каждая позиция в заказе ссылается ровно на один товар из каталога, при этом один товар может фигурировать во множестве позиций (0..).
+
+Зависимость (Dependency) — пунктирная линия с открытой стрелкой:
+
+ShoppingCart ..> Order (маркер creates): Вызов метода checkout() в корзине физически порождает (создает) новый объект заказа.
+
+Administrator ..> Order (маркер requests): Администратор делает запросы к заказам (например, для выполнения метода seeanyHistorybyemail()).
+
+Order ..> PaymentStrategy (маркер Use): Заказ динамически использует переданную в него стратегию оплаты для завершения транзакции.
+
+Агрегация (Aggregation) — сплошная линия с пустым ромбом:
+
+ShoppingCart o— OrderItem: Корзина выступает контейнером для позиций (OrderItem), но при очистке корзины сами позиции логически не уничтожаются, если они уже сохранены в другом месте.
+
+Order o— OrderState: Объект заказа агрегирует в себе состояние.
+
+Inventory o— Product (0..*): Инвентарь агрегирует список существующих в системе товаров.
+
+Композиция (Composition) — сплошная линия с закрашенным ромбом:
+
+Order — (1..) OrderItem: Строгая зависимость жизненного цикла. Заказ физически состоит из позиций (OrderItem). Если заказ удаляется из системы, все вложенные в него позиции (OrderItem) удаляются вместе с ним.
+
