@@ -1,0 +1,1 @@
+id|createdAtUtc|status|tracking|items|customerId

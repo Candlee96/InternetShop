@@ -2,7 +2,9 @@ namespace InternetShop.Models;
 
 public abstract class AUser
 {
-    private string? password;
+    private string? passwordHash;
+
+    public string PasswordHash => passwordHash ?? string.Empty;
 
     public int Id { get; }
     public string Email { get; }
@@ -19,11 +21,26 @@ public abstract class AUser
     public bool Register(string rawPassword)
     {
         if (string.IsNullOrWhiteSpace(rawPassword) || rawPassword.Length < 6) return false;
-        password = rawPassword;
+        passwordHash = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(rawPassword)));
         return true;
     }
 
-    public bool Login(string rawPassword) => !IsBlocked && password == rawPassword;
+    public bool SetPasswordHash(string hash)
+    {
+        if (string.IsNullOrWhiteSpace(hash) || hash.Length != 64) return false;
+        try { _ = Convert.FromHexString(hash); }
+        catch (FormatException) { return false; }
+        passwordHash = hash.ToUpperInvariant();
+        return true;
+    }
+
+    public bool Login(string rawPassword)
+    {
+        if (IsBlocked || string.IsNullOrEmpty(passwordHash)) return false;
+        var candidate = System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(rawPassword));
+        var stored = Convert.FromHexString(passwordHash);
+        return System.Security.Cryptography.CryptographicOperations.FixedTimeEquals(candidate, stored);
+    }
 
     public void Block() => IsBlocked = true;
     public void Unblock() => IsBlocked = false;

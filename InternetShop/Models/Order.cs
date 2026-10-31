@@ -10,14 +10,24 @@ public sealed class Order
     public string? TrackingNumber { get; private set; }
     public IOrderState CurrentState { get; private set; }
     public IReadOnlyList<OrderItem> OrderItems => orderItems;
+    public int CustomerId { get; internal set; }
 
-    public Order(int orderId, IEnumerable<OrderItem> items)
+    public Order(int orderId, IEnumerable<OrderItem> items) : this(orderId, items, DateTime.UtcNow) { }
+
+    public Order(int orderId, IEnumerable<OrderItem> items, DateTime createdAt)
     {
+        if (orderId <= 0) throw new ArgumentOutOfRangeException(nameof(orderId));
         orderItems = items?.ToList() ?? throw new ArgumentNullException(nameof(items));
-        if (orderItems.Count == 0) throw new ArgumentException("Order must contain items.", nameof(items));
         OrderId = orderId;
-        CreatedAt = DateTime.UtcNow;
+        CreatedAt = createdAt;
         CurrentState = new CreatedState();
+    }
+
+    internal void AddPersistedItem(OrderItem item) => orderItems.Add(item);
+    internal void SetPersistedStatus(string status, string tracking)
+    {
+        CurrentState = status switch { "Оплачен" => new PaidState(), "Отправлен" => new ShippedState(), "Доставлен" => new DeliveredState(), _ => new CreatedState() };
+        TrackingNumber = string.IsNullOrWhiteSpace(tracking) ? null : tracking;
     }
 
     public decimal CalculateTotal() => orderItems.Sum(item => item.GetSubtotal());
