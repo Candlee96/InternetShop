@@ -138,13 +138,13 @@ void AdministratorMenu(Administrator administrator)
 {
     while (true)
     {
-        Console.WriteLine("\n1. Каталог  2. Добавить товар  3. Изменить остаток  4. Заблокировать пользователя  0. Выход");
+        Console.WriteLine("\n1. Каталог  2. Добавить товар  3. Изменить остаток  4. Пользователи  0. Выход");
         switch (Console.ReadLine())
         {
             case "1": ShowCatalog(); break;
             case "2": AddProduct(administrator); break;
             case "3": ChangeStock(administrator); break;
-            case "4": BlockUser(administrator); break;
+            case "4": ManageUsers(administrator); break;
             case "0": return;
             default: Console.WriteLine("Неизвестная команда."); break;
         }
@@ -163,10 +163,38 @@ void ChangeStock(Administrator administrator)
     try { inventory.UpdateQuantity(id, amount); store.Save(users, inventory.GetCatalog(), orders); Console.WriteLine("Остаток изменен."); }
     catch (Exception e) { Console.WriteLine(e.Message); }
 }
-void BlockUser(Administrator administrator)
+void ManageUsers(Administrator administrator)
 {
-    var user = users.FirstOrDefault(u => u.Email == Ask("Email пользователя: ").Trim().ToLowerInvariant());
-    if (user is null) { Console.WriteLine("Пользователь не найден."); return; }
-    administrator.BlockUser(user); store.Save(users, inventory.GetCatalog(), orders); Console.WriteLine("Пользователь заблокирован.");
+    while (true)
+    {
+        Console.WriteLine("\nСписок пользователей:");
+        foreach (var user in users.OrderBy(user => user.Id))
+        {
+            var name = user is Customer customer ? customer.Name : user is Manager ? "Менеджер" : "Администратор";
+            var role = user is Customer ? "Customer" : user is Manager ? "Manager" : "Administrator";
+            Console.WriteLine($"ID {user.Id} | {name} | {user.Email} | {role} | {(user.IsBlocked ? "Заблокирован" : "Активен")}");
+        }
+
+        if (!int.TryParse(Ask("Введите ID для блокировки/разблокировки (0 — назад): "), out var id) || id == 0) return;
+        var selectedUser = users.FirstOrDefault(user => user.Id == id);
+        if (selectedUser is null)
+        {
+            Console.WriteLine("Пользователь с таким ID не найден.");
+            continue;
+        }
+
+        if (selectedUser.IsBlocked)
+        {
+            administrator.UnblockUser(selectedUser);
+            Console.WriteLine("Пользователь разблокирован.");
+        }
+        else
+        {
+            administrator.BlockUser(selectedUser);
+            Console.WriteLine("Пользователь заблокирован.");
+        }
+
+        store.Save(users, inventory.GetCatalog(), orders);
+    }
 }
 string Ask(string prompt) { Console.Write(prompt); return Console.ReadLine() ?? string.Empty; }
