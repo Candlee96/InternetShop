@@ -27,16 +27,23 @@ public sealed class TextFileStore
         {
             if (string.IsNullOrWhiteSpace(line)) continue;
             var f = line.Split('|');
-            if (f.Length != 7 || !int.TryParse(f[1], out var id)) continue;
-            AUser user = f[0] switch
+            if ((f.Length != 7 && f.Length != 8) || !int.TryParse(f[1], out var id)) continue;
+
+            // В новом формате роль находится сразу после email:
+            // type|id|name|email|role|number|passwordHash|blocked
+            var role = f.Length == 8 ? f[4].Trim().ToLowerInvariant() : f[0].ToLowerInvariant();
+            var numberIndex = f.Length == 8 ? 5 : 4;
+            var passwordIndex = f.Length == 8 ? 6 : 5;
+            var blockedIndex = f.Length == 8 ? 7 : 6;
+            AUser user = role switch
             {
-                "Customer" when f.Length == 7 => new Customer(id, Decode(f[2]), Decode(f[3])),
-                "Manager" => new Manager(id, int.Parse(f[4], CultureInfo.InvariantCulture), Decode(f[3])),
-                "Administrator" => new Administrator(id, int.Parse(f[4], CultureInfo.InvariantCulture), Decode(f[3])),
+                "admin" or "administrator" => new Administrator(id, int.Parse(f[numberIndex], CultureInfo.InvariantCulture), Decode(f[3])),
+                "manager" => new Manager(id, int.Parse(f[numberIndex], CultureInfo.InvariantCulture), Decode(f[3])),
+                "customer" => new Customer(id, Decode(f[2]), Decode(f[3])),
                 _ => null!
             };
-            if (user is null || !user.SetPasswordHash(f[5])) continue;
-            if (bool.TryParse(f[6], out var blocked) && blocked) user.Block();
+            if (user is null || !user.SetPasswordHash(f[passwordIndex])) continue;
+            if (bool.TryParse(f[blockedIndex], out var blocked) && blocked) user.Block();
             users.Add(user);
         }
         foreach (var line in File.ReadLines(productsPath).Skip(1))
@@ -68,8 +75,8 @@ public sealed class TextFileStore
     public void Save(IEnumerable<AUser> users, IEnumerable<Product> products, IEnumerable<Order> orders)
     {
         Directory.CreateDirectory(dataDirectory);
-        Write("users.txt", "type|id|name|email|number|passwordHash|blocked", users.Select(u =>
-            $"{(u is Customer ? "Customer" : u is Manager ? "Manager" : "Administrator")}|{u.Id}|{Encode(u is Customer c ? c.Name : "")}|{Encode(u.Email)}|{(u is Manager m ? m.EmployeeId : u is Administrator a ? a.AdminLevel : 0)}|{u.PasswordHash}|{u.IsBlocked}"));
+        Write("users.txt", "type|id|name|email|role|number|passwordHash|blocked", users.Select(u =>
+            $"{(u is Customer ? "Customer" : u is Manager ? "Manager" : "Administrator")}|{u.Id}|{Encode(u is Customer c ? c.Name : "")}|{Encode(u.Email)}|{(u is Administrator ? "admin" : u is Manager ? "manager" : "customer")}|{(u is Manager m ? m.EmployeeId : u is Administrator a ? a.AdminLevel : 0)}|{u.PasswordHash}|{u.IsBlocked}"));
         Write("products.txt", "id|name|price|stock", products.Select(p => $"{p.Id}|{Encode(p.Name)}|{p.Price.ToString(CultureInfo.InvariantCulture)}|{p.StockQuantity}"));
         Write("orders.txt", "id|createdAtUtc|status|tracking|items|customerId", orders.Select(o =>
             $"{o.OrderId}|{o.CreatedAt.ToString("O", CultureInfo.InvariantCulture)}|{o.CurrentState.Name}|{Encode(o.TrackingNumber ?? "")}|{string.Join(',', o.OrderItems.Select(i => $"{i.Product.Id}:{i.Quantity}:{i.PriceAtPurchase.ToString(CultureInfo.InvariantCulture)}"))}|{o.CustomerId}"));
@@ -83,7 +90,11 @@ public sealed class TextFileStore
         File.Move(temp, path, true);
     }
     private static string Encode(string value) => Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(value));
-    private static string Decode(string value) => System.Text.Encoding.UTF8.GetString(Convert.FromBase64String(value));
+    private static string Decode(string value)
+    {
+        try { return System.Text.Encoding.UTF8.GetString(Convert.FromBase64String(value)); }
+        catch (FormatException) { return value; }
+    }
 
     private static void Seed(IList<AUser> users, Inventory inventory, IList<Order> orders)
     {

@@ -169,7 +169,9 @@ void AddProduct(Administrator administrator)
     }
 
     if (!decimal.TryParse(Ask("Цена: "), out var price) || !int.TryParse(Ask("Остаток: "), out var stock)) return;
-    try { inventory.AddNewProduct(new Product(id, Ask("Название: "), price, stock)); store.Save(users, inventory.GetCatalog(), orders); Console.WriteLine("Товар добавлен."); }
+    var name = Ask("Название: ").Trim();
+    if (string.IsNullOrWhiteSpace(name)) { Console.WriteLine("Название не может быть пустым."); return; }
+    try { inventory.AddNewProduct(new Product(id, name, price, stock)); store.Save(users, inventory.GetCatalog(), orders); Console.WriteLine($"Товар '{name}' добавлен."); }
     catch (Exception e) { Console.WriteLine(e.Message); }
 }
 void ChangeStock(Administrator administrator)
