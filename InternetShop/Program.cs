@@ -153,7 +153,22 @@ void AdministratorMenu(Administrator administrator)
 
 void AddProduct(Administrator administrator)
 {
-    if (!int.TryParse(Ask("Id: "), out var id) || !decimal.TryParse(Ask("Цена: "), out var price) || !int.TryParse(Ask("Остаток: "), out var stock)) return;
+    var idInput = Ask("Id (или U для автоматического выбора): ").Trim();
+    int id;
+    if (string.Equals(idInput, "u", StringComparison.OrdinalIgnoreCase))
+    {
+        var usedIds = inventory.GetCatalog().Select(product => product.Id).ToHashSet();
+        id = 1;
+        while (usedIds.Contains(id)) id++;
+        Console.WriteLine($"Выбран свободный ID: {id}");
+    }
+    else if (!int.TryParse(idInput, out id) || id <= 0)
+    {
+        Console.WriteLine("Введите положительный ID или U для автоматического выбора.");
+        return;
+    }
+
+    if (!decimal.TryParse(Ask("Цена: "), out var price) || !int.TryParse(Ask("Остаток: "), out var stock)) return;
     try { inventory.AddNewProduct(new Product(id, Ask("Название: "), price, stock)); store.Save(users, inventory.GetCatalog(), orders); Console.WriteLine("Товар добавлен."); }
     catch (Exception e) { Console.WriteLine(e.Message); }
 }
