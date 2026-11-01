@@ -30,15 +30,30 @@ void Register()
     if (users.Any(u => u.Email == email.Trim().ToLowerInvariant())) { Console.WriteLine("Пользователь уже существует."); return; }
     var name = Ask("Имя: ");
     var password = Ask("Пароль (не менее 6 символов): ");
-    var user = new Customer(users.Count == 0 ? 1 : users.Max(u => u.Id) + 1, name, email);
+    var userId = users.Count == 0 ? 1 : users.Max(u => u.Id) + 1;
+    AUser user = email.Contains("admin", StringComparison.OrdinalIgnoreCase)
+        ? new Administrator(userId, 1, email)
+        : email.Contains("manager", StringComparison.OrdinalIgnoreCase)
+            ? new Manager(userId, 1000 + userId, email)
+            : new Customer(userId, name, email);
+
     if (!user.Register(password)) { Console.WriteLine("Некорректный пароль."); return; }
-    users.Add(user); store.Save(users, inventory.GetCatalog(), orders); Console.WriteLine("Регистрация выполнена.");
+    users.Add(user);
+    store.Save(users, inventory.GetCatalog(), orders);
+    Console.WriteLine($"Регистрация выполнена. Роль: {user.GetType().Name}.");
 }
 
 void Login()
 {
-    var user = users.FirstOrDefault(u => u.Email == Ask("Email: ").Trim().ToLowerInvariant());
-    if (user is null || !user.Login(Ask("Пароль: "))) { Console.WriteLine("Неверные учетные данные или пользователь заблокирован."); return; }
+    var email = Ask("Email: ").Trim().ToLowerInvariant();
+    var password = Ask("Пароль: ");
+    var user = users.FirstOrDefault(u => u.Email == email);
+    if (user is null || !user.Login(password))
+    {
+        Console.WriteLine("Неверные учетные данные или пользователь заблокирован.");
+        return;
+    }
+
     Console.WriteLine($"Выполнен вход: {user.Email} ({user.GetType().Name})");
     if (user is Customer customer) CustomerMenu(customer);
     else if (user is Manager manager) ManagerMenu(manager);
