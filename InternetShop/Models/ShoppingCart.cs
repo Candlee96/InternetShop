@@ -20,6 +20,18 @@ public sealed class ShoppingCart
         items.Add(new OrderItem(product, quantity));
     }
 
+    public void SetQuantity(int productId, int quantity)
+    {
+        if (quantity <= 0) throw new ArgumentOutOfRangeException(nameof(quantity), "Количество должно быть больше нуля.");
+
+        var existing = items.FirstOrDefault(item => item.Product.Id == productId)
+            ?? throw new KeyNotFoundException("Товар не найден в корзине.");
+        if (!existing.Product.CheckAvailability(quantity))
+            throw new InvalidOperationException("Нельзя установить количество больше остатка на складе.");
+
+        items[items.IndexOf(existing)] = new OrderItem(existing.Product, quantity, existing.PriceAtPurchase);
+    }
+
     public void RemoveItem(int productId) => items.RemoveAll(item => item.Product.Id == productId);
     public decimal CalculateTotal() => items.Sum(item => item.GetSubtotal());
     public bool IsEmpty => items.Count == 0;
